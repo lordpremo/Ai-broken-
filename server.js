@@ -2,11 +2,15 @@ import express from "express";
 import multer from "multer";
 import axios from "axios";
 import dotenv from "dotenv";
+import Replicate from "replicate";
 
 dotenv.config();
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN
+});
 
 app.use(express.json());
 
@@ -22,7 +26,7 @@ app.get("/", (req, res) => {
           body {
             background: #05060a;
             color: #f5f5f5;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            font-family: system-ui, sans-serif;
             text-align: center;
             padding: 40px 10px;
           }
@@ -30,39 +34,29 @@ app.get("/", (req, res) => {
             font-size: 42px;
             color: #00eaff;
             text-shadow: 0 0 12px #00eaffaa;
-            margin-bottom: 10px;
           }
           h2 {
             color: #ff4dff;
             text-shadow: 0 0 10px #ff4dffaa;
           }
-          p {
-            font-size: 17px;
-            opacity: 0.9;
-          }
           .box {
             margin: 30px auto;
             padding: 20px;
             max-width: 900px;
-            background: radial-gradient(circle at top, #111827, #020617);
+            background: #0f172a;
             border-radius: 14px;
             border: 1px solid #00eaff55;
             box-shadow: 0 0 25px #00eaff33;
           }
           code {
             background: #020617;
-            padding: 12px 14px;
+            padding: 12px;
             display: block;
             border-radius: 8px;
             margin-top: 10px;
             text-align: left;
             color: #a5f3fc;
             font-size: 14px;
-            overflow-x: auto;
-          }
-          .tagline {
-            margin-bottom: 20px;
-            font-size: 18px;
           }
           .footer {
             margin-top: 40px;
@@ -73,38 +67,30 @@ app.get("/", (req, res) => {
       </head>
       <body>
         <h1>🔥 LORD AI IMAGE API 🔥</h1>
-        <p class="tagline">Karibu kwenye API inayofanya <b>CHOCHOTE</b> unachoandika kwa kutumia picha yako.</p>
+        <p>API inayofanya <b>CHOCHOTE</b> unachoandika kwa kutumia AI + Picha.</p>
 
         <div class="box">
           <h2>🧪 Jinsi ya Kutumia</h2>
-          <p>Tuma request ya aina ya <b>POST</b> kwenye endpoint hii:</p>
+          <p>Tuma request ya aina ya <b>POST</b> kwenye:</p>
           <code>POST /process</code>
 
-          <p>Tumia <b>form-data</b> kwenye body:</p>
+          <p>Tumia <b>form-data</b>:</p>
           <code>
 image: (file ya picha)<br>
-text: (maelekezo yoyote unayotaka yafanyike kwenye picha)
+text: (maelekezo yoyote)
           </code>
 
-          <p>Mifano ya maelekezo:</p>
+          <p>Mfano wa maelekezo:</p>
           <code>
 "ondoa background"<br>
 "nifanye cartoon"<br>
 "weka jina langu juu ya picha"<br>
-"ongeza blur na mwanga"<br>
-"badilisha background iwe beach usiku"
-          </code>
-
-          <p>Response itarudisha:</p>
-          <code>
-status: "success"<br>
-instruction: (ulichoandika)<br>
-ai_prompt: (maelekezo yaliyosafishwa na AI)<br>
-output: (data kutoka kwa model ya AI image)
+"badilisha background iwe beach"<br>
+"ongeza mwanga na contrast"
           </code>
         </div>
 
-        <p class="footer">© 2026 BROKEN LORD CMD — LORD AI IMAGE API • Built for anything you can imagine.</p>
+        <p class="footer">© 2026 BROKEN LORD CMD — LORD AI IMAGE API</p>
       </body>
     </html>
   `);
@@ -131,11 +117,11 @@ app.post("/process", upload.single("image"), async (req, res) => {
           {
             role: "system",
             content:
-              "You convert user instructions into a clean, concise image editing prompt. Respond with ONLY the prompt, no explanation."
+              "Convert user instructions into a clean, concise image editing prompt. Respond with ONLY the prompt."
           },
           {
             role: "user",
-            content: `Instruction: "${userText}". Convert this into a single image editing prompt.`
+            content: `Instruction: "${userText}". Convert to image editing prompt.`
           }
         ]
       },
@@ -149,34 +135,24 @@ app.post("/process", upload.single("image"), async (req, res) => {
 
     const aiPrompt = groqResponse.data.choices[0].message.content.trim();
 
-    // STEP 2: Send to Replicate for image editing
-    const replicateResponse = await axios.post(
-      "https://api.replicate.com/v1/predictions",
-      {
-        version: "black-forest-labs/flux-schnell",
-        input: {
-          prompt: aiPrompt,
-          image: image.path
-        }
-      },
-      {
-        headers: {
-          Authorization: `Token ${process.env.REPLICATE_API_KEY}`,
-          "Content-Type": "application/json"
-        }
+    // STEP 2: Run Replicate model
+    const output = await replicate.run("black-forest-labs/flux-2-pro", {
+      input: {
+        prompt: aiPrompt,
+        image: image.path
       }
-    );
+    });
 
     res.json({
       status: "success",
       instruction: userText,
       ai_prompt: aiPrompt,
-      output: replicateResponse.data
+      output_url: output?.[0] || output
     });
 
   } catch (err) {
-    console.error(err?.response?.data || err.message);
-    res.status(500).json({ error: "AI processing failed" });
+    console.error(err);
+    res.status(500).json({ error: "AI processing failed", details: err.message });
   }
 });
 
