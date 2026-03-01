@@ -1,7 +1,0 @@
-services:
-  - type: web
-    name: lord-ai-image-api
-    env: node
-    plan: free
-    buildCommand: "npm install"
-    startCommand: "npm start"
