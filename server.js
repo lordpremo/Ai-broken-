@@ -3,101 +3,71 @@ import multer from "multer";
 import axios from "axios";
 import dotenv from "dotenv";
 import Replicate from "replicate";
+import cors from "cors";
 
 dotenv.config();
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
+
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN
 });
 
 app.use(express.json());
+app.use(cors());
 
 // =========================
-//  BRAND LANDING PAGE
+//  LANDING PAGE
 // =========================
 app.get("/", (req, res) => {
   res.send(`
     <html>
       <head>
-        <title>LORD AI IMAGE API</title>
+        <title>LORD AI IMAGE & VIDEO API</title>
         <style>
-          body {
-            background: #05060a;
-            color: #f5f5f5;
-            font-family: system-ui, sans-serif;
-            text-align: center;
-            padding: 40px 10px;
-          }
-          h1 {
-            font-size: 42px;
-            color: #00eaff;
-            text-shadow: 0 0 12px #00eaffaa;
-          }
-          h2 {
-            color: #ff4dff;
-            text-shadow: 0 0 10px #ff4dffaa;
-          }
-          .box {
-            margin: 30px auto;
-            padding: 20px;
-            max-width: 900px;
-            background: #0f172a;
-            border-radius: 14px;
-            border: 1px solid #00eaff55;
-            box-shadow: 0 0 25px #00eaff33;
-          }
-          code {
-            background: #020617;
-            padding: 12px;
-            display: block;
-            border-radius: 8px;
-            margin-top: 10px;
-            text-align: left;
-            color: #a5f3fc;
-            font-size: 14px;
-          }
-          .footer {
-            margin-top: 40px;
-            opacity: 0.6;
-            font-size: 14px;
-          }
+          body { background:#05060a;color:#f5f5f5;font-family:system-ui,sans-serif;text-align:center;padding:40px 10px; }
+          h1 { font-size:40px;color:#00eaff;text-shadow:0 0 12px #00eaffaa; }
+          h2 { color:#ff4dff;text-shadow:0 0 10px #ff4dffaa; }
+          .box { margin:20px auto;padding:20px;max-width:900px;background:#0f172a;border-radius:14px;border:1px solid #00eaff55;box-shadow:0 0 25px #00eaff33; }
+          code { background:#020617;padding:10px;display:block;border-radius:8px;margin-top:10px;text-align:left;color:#a5f3fc;font-size:13px; }
+          .footer { margin-top:30px;opacity:0.6;font-size:14px; }
         </style>
       </head>
       <body>
-        <h1>🔥 LORD AI IMAGE API 🔥</h1>
-        <p>API inayofanya <b>CHOCHOTE</b> unachoandika kwa kutumia AI + Picha.</p>
+        <h1>🔥 BROKEN LORD CMD — AI IMAGE & VIDEO API 🔥</h1>
+        <p>Image editing, image generation, na video generation — zote kwenye API moja.</p>
 
         <div class="box">
-          <h2>🧪 Jinsi ya Kutumia</h2>
-          <p>Tuma request ya aina ya <b>POST</b> kwenye:</p>
-          <code>POST /process</code>
-
-          <p>Tumia <b>form-data</b>:</p>
+          <h2>🖼 POST /process — Image Editing (image + text)</h2>
           <code>
 image: (file ya picha)<br>
-text: (maelekezo yoyote)
-          </code>
-
-          <p>Mfano wa maelekezo:</p>
-          <code>
-"ondoa background"<br>
-"nifanye cartoon"<br>
-"weka jina langu juu ya picha"<br>
-"badilisha background iwe beach"<br>
-"ongeza mwanga na contrast"
+text: (maelekezo ya editing, mfano: "ondoa background")
           </code>
         </div>
 
-        <p class="footer">© 2026 BROKEN LORD CMD — LORD AI IMAGE API</p>
+        <div class="box">
+          <h2>🖌 POST /generate-image — Text → Image</h2>
+          <code>
+text: "a neon cyberpunk city at night, ultra detailed"
+          </code>
+        </div>
+
+        <div class="box">
+          <h2>🎬 POST /generate-video — Text → Video</h2>
+          <code>
+text: "a woman is walking through a busy Tokyo street at night, cinematic"
+          </code>
+        </div>
+
+        <p class="footer">© 2026 BROKEN LORD CMD</p>
       </body>
     </html>
   `);
 });
 
 // =========================
-//  MAIN AI ENDPOINT
+//  /process — IMAGE EDITING
 // =========================
 app.post("/process", upload.single("image"), async (req, res) => {
   try {
@@ -108,7 +78,7 @@ app.post("/process", upload.single("image"), async (req, res) => {
       return res.status(400).json({ error: "Missing text or image" });
     }
 
-    // STEP 1: Convert user instruction → AI prompt (Groq)
+    // GROQ → convert instruction to clean prompt
     const groqResponse = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -135,24 +105,78 @@ app.post("/process", upload.single("image"), async (req, res) => {
 
     const aiPrompt = groqResponse.data.choices[0].message.content.trim();
 
-    // STEP 2: Run Replicate model
-    const output = await replicate.run("black-forest-labs/flux-2-pro", {
+    // Replicate — image-to-image using flux-1.1-pro
+    const output = await replicate.run("black-forest-labs/flux-1.1-pro", {
       input: {
         prompt: aiPrompt,
-        image: image.path
+        image: image.path,
+        strength: 0.7
       }
     });
 
     res.json({
       status: "success",
+      mode: "image_edit",
       instruction: userText,
       ai_prompt: aiPrompt,
-      output_url: output?.[0] || output
+      output_url: output?.url ? output.url() : output?.[0] || output
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "AI processing failed", details: err.message });
+  }
+});
+
+// =========================
+//  /generate-image — TEXT → IMAGE
+// =========================
+app.post("/generate-image", async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: "Missing text" });
+
+    const output = await replicate.run("black-forest-labs/flux-1.1-pro", {
+      input: {
+        prompt: text,
+        prompt_upsampling: true
+      }
+    });
+
+    res.json({
+      status: "success",
+      mode: "text_to_image",
+      prompt: text,
+      output_url: output?.url ? output.url() : output?.[0] || output
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Image generation failed", details: err.message });
+  }
+});
+
+// =========================
+//  /generate-video — TEXT → VIDEO
+// =========================
+app.post("/generate-video", async (req, res) => {
+  try {
+    const { text } = req.body;
+    if (!text) return res.status(400).json({ error: "Missing text" });
+
+    const output = await replicate.run("minimax/video-01", {
+      input: {
+        prompt: text
+      }
+    });
+
+    res.json({
+      status: "success",
+      mode: "text_to_video",
+      prompt: text,
+      output_url: output?.url ? output.url() : output
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Video generation failed", details: err.message });
   }
 });
 
@@ -161,5 +185,5 @@ app.post("/process", upload.single("image"), async (req, res) => {
 // =========================
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`LORD AI IMAGE API running on port ${port}`);
+  console.log(`LORD AI IMAGE & VIDEO API running on port ${port}`);
 });
