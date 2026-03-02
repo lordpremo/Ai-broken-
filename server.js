@@ -21,53 +21,11 @@ app.use(cors());
 //  LANDING PAGE
 // =========================
 app.get("/", (req, res) => {
-  res.send(`
-    <html>
-      <head>
-        <title>LORD AI IMAGE & VIDEO API</title>
-        <style>
-          body { background:#05060a;color:#f5f5f5;font-family:system-ui,sans-serif;text-align:center;padding:40px 10px; }
-          h1 { font-size:40px;color:#00eaff;text-shadow:0 0 12px #00eaffaa; }
-          h2 { color:#ff4dff;text-shadow:0 0 10px #ff4dffaa; }
-          .box { margin:20px auto;padding:20px;max-width:900px;background:#0f172a;border-radius:14px;border:1px solid #00eaff55;box-shadow:0 0 25px #00eaff33; }
-          code { background:#020617;padding:10px;display:block;border-radius:8px;margin-top:10px;text-align:left;color:#a5f3fc;font-size:13px; }
-          .footer { margin-top:30px;opacity:0.6;font-size:14px; }
-        </style>
-      </head>
-      <body>
-        <h1>🔥 BROKEN LORD CMD — AI IMAGE & VIDEO API 🔥</h1>
-        <p>Image editing, image generation, na video generation — zote kwenye API moja.</p>
-
-        <div class="box">
-          <h2>🖼 POST /process — Image Editing (image + text)</h2>
-          <code>
-image: (file ya picha)<br>
-text: (maelekezo ya editing, mfano: "ondoa background")
-          </code>
-        </div>
-
-        <div class="box">
-          <h2>🖌 POST /generate-image — Text → Image</h2>
-          <code>
-text: "a neon cyberpunk city at night, ultra detailed"
-          </code>
-        </div>
-
-        <div class="box">
-          <h2>🎬 POST /generate-video — Text → Video</h2>
-          <code>
-text: "a woman is walking through a busy Tokyo street at night, cinematic"
-          </code>
-        </div>
-
-        <p class="footer">© 2026 BROKEN LORD CMD</p>
-      </body>
-    </html>
-  `);
+  res.send("🔥 BROKEN LORD CMD — AI IMAGE & VIDEO API IS LIVE 🔥");
 });
 
 // =========================
-//  /process — IMAGE EDITING
+//  /process — IMAGE EDITING (C MODE)
 // =========================
 app.post("/process", upload.single("image"), async (req, res) => {
   try {
@@ -78,7 +36,7 @@ app.post("/process", upload.single("image"), async (req, res) => {
       return res.status(400).json({ error: "Missing text or image" });
     }
 
-    // GROQ → convert instruction to clean prompt
+    // 1. Convert instruction → clean AI prompt (Groq)
     const groqResponse = await axios.post(
       "https://api.groq.com/openai/v1/chat/completions",
       {
@@ -105,25 +63,29 @@ app.post("/process", upload.single("image"), async (req, res) => {
 
     const aiPrompt = groqResponse.data.choices[0].message.content.trim();
 
-    // Replicate — image-to-image using flux-1.1-pro
-    const output = await replicate.run("black-forest-labs/flux-1.1-pro", {
+    // 2. Run image editing using flux-kontext-pro
+    const output = await replicate.run("black-forest-labs/flux-kontext-pro", {
       input: {
         prompt: aiPrompt,
-        image: image.path,
-        strength: 0.7
+        input_image: image.path,
+        output_format: "jpg"
       }
     });
 
     res.json({
       status: "success",
-      mode: "image_edit",
+      mode: "image_edit_ai",
       instruction: userText,
       ai_prompt: aiPrompt,
       output_url: output?.url ? output.url() : output?.[0] || output
     });
+
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: "AI processing failed", details: err.message });
+    res.status(500).json({
+      error: "AI processing failed",
+      details: err.message
+    });
   }
 });
 
@@ -185,5 +147,5 @@ app.post("/generate-video", async (req, res) => {
 // =========================
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-  console.log(`LORD AI IMAGE & VIDEO API running on port ${port}`);
+  console.log(`🔥 BROKEN LORD CMD API running on port ${port}`);
 });
