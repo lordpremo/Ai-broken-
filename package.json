@@ -1,7 +1,7 @@
 {
-  "name": "lord-ai-image-api",
+  "name": "broken-lord-ai-api",
   "version": "1.0.0",
-  "description": "BROKEN LORD CMD — AI Image & Video API",
+  "description": "BROKEN LORD CMD — AI Image Editing, Image Generation & Video Generation API",
   "main": "server.js",
   "type": "module",
   "scripts": {
